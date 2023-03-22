@@ -6,7 +6,11 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import hashlib
 import os
 import base64
+
 from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import padding
+import base64
 class CipheredGUI(BasicGUI):
 
     def init_(self, key=None):
@@ -42,29 +46,29 @@ class CipheredGUI(BasicGUI):
         self._client.start(self._callback)
         self._client.register(name)
 
+   
+        #Taille de la clé en octets
+        key_size = 32
+        nb_iterations= 100000
+        #Dérivation de clé 
+        salt = b"data"
+        key= PBKDF2HMAC(algorithm=hashes.SHA256(),length = key_size,salt=salt,iterations = nb_iterations,backend=default_backend()).derive(password.encode())
+        b_password = bytes(password,"utf8")
+        self.key = key.derive(b_password)
+        self.log.info()
         dpg.hide_item("connection_windows")
         dpg.show_item("chat_windows")
         dpg.set_value("screen", "Connecting")
-        #Taille de la clé en octets
-        key_size = 16
-        nb_iterations= 100000
-        #Dérivation de clé 
-        salt = "Yo".encode()
-
-        self.key= PBKDF2HMAC(algorithm=hashes.SHA256(),length = key_size,salt=salt,iterations = nb_iterations,backend=default_backend()).derive(password.encode())
-
-
-
 
     def encrypt(self,message: str)-> tuple[bytes, bytes]:
         #choix clé de chiffrement
-        key,iv=os.urandom(16)
-        #chiffrement du message en utilisant AES 
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        padded_message = message.encode('utf-8').rjust(16*((len(message)*15)//16))
-        encrypted_message = cipher.encrypt(padded_message)
-        return (iv,encrypted_message)
-
+        iv=os.urandom(16)
+        key = os.urandom(32)
+        cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+        encryptor = cipher.encryptor()
+        ct = encryptor.update(b"a secret message") + encryptor.finalize()
+        decryptor = cipher.decryptor()
+        decryptor.update(ct) + decryptor.finalize()
 
 
 
@@ -72,7 +76,10 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     # instanciate the class, create context and related stuff, run the main loop
-    client = CipheredGUI()
+    client = BasicGUI()
     client.create()
     client.loop()
+
+
+
 
