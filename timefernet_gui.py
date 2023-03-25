@@ -13,9 +13,9 @@ class TimeFernetGUI(FernetGUI):
         '''
         encr= Fernet(self.key)
         new_message= bytes(message,'utf-8')
-        Temps = int(time.time())
+        temps = int(time.time())
         #Temps = int(time.time())-45
-        encryp = encr.encrypt_at_time(new_message,current_time= Temps)
+        encryp = encr.encrypt_at_time(new_message,current_time= temps)
         return encryp
 
     def decrypt(self, message: bytes):
@@ -29,8 +29,8 @@ class TimeFernetGUI(FernetGUI):
             decryp = Fernet(self.key)
             message = base64.b64decode(message['data'])
             decr = Fernet(self.key)
-            Temps= int(time.time())
-            text_bytes = decr.decrypt_at_time(token=message,ttl = TTL,current_time=Temps).decode('utf-8') 
+            temps= int(time.time())
+            text_bytes = decr.decrypt_at_time(token=message,ttl = TTL,current_time=temps).decode('utf-8') 
             return text_bytes
         
         
