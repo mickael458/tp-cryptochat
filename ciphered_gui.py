@@ -58,7 +58,7 @@ class CipheredGUI(BasicGUI):
         #Derivation of the key
 
     
-        kdf= PBKDF2HMAC(algorithm=hashes.SHA256(),length = KEY_SIZE,salt=salt,iterations = NB_ITERATIONS)
+        kdf= PBKDF2HMAC(algorithm=hashes.SHA256(),length = KEY_SIZE,salt=SALT,iterations = NB_ITERATIONS)
         b_password = bytes(password,"utf8")
         self._key = kdf.derive(b_password)
         self._log.info(f"self.key {self._key}")
