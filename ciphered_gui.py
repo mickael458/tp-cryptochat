@@ -12,6 +12,10 @@ from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes
 from cryptography.hazmat.primitives import padding, hashes
 import base64
 
+KEY_SIZE= 16
+NB_ITERATIONS= 100000
+NB_BLOCK = 128
+
 class CipheredGUI(BasicGUI):
 
     def init_(self)->None:
@@ -29,12 +33,13 @@ class CipheredGUI(BasicGUI):
                     dpg.add_input_text(default_value=DEFAULT_VALUES[field], tag=f"connection_{field}")
             
             self._log.info("Ajout d'un champ mot de passe")
-            #ajout d'un mot de passe
+            #add password field
             dpg.add_text("password")      
             dpg.add_input_text(password=True,tag="connection_password")
             dpg.add_button(label="Connect", callback=self.run_chat)
 
     def run_chat(self, sender, app_data)->None:
+
         # callback uskeyed by the connection windows to start a chat session
         host = dpg.get_value("connection_host")
         port = int(dpg.get_value("connection_port"))
@@ -48,13 +53,12 @@ class CipheredGUI(BasicGUI):
         self._client.start(self._callback)
         self._client.register(name)
 
-   
-        #Taille de la clé en octets
-        key_size = 16
-        nb_iterations= 100000
-        #Dérivation de clé 
+
+
+        #Derivation of the key
+
         salt = b"data"
-        kdf= PBKDF2HMAC(algorithm=hashes.SHA256(),length = key_size,salt=salt,iterations = nb_iterations)
+        kdf= PBKDF2HMAC(algorithm=hashes.SHA256(),length = KEY_SIZE,salt=salt,iterations = NB_ITERATIONS)
         b_password = bytes(password,"utf8")
         self._key = kdf.derive(b_password)
         self._log.info(f"self.key {self._key}")
@@ -64,10 +68,11 @@ class CipheredGUI(BasicGUI):
 
 
     def encrypt(self, message):
-        #choix clé de chiffrement
+
+        #choice of the algorithm
     
         iv = os.urandom(16)
-        cipher = Cipher(algorithms.AES(self._key), modes.CTR(iv),backend=default_backend())
+        cipher = Cipher(algorithms.AES(self._key), modes.CTR(iv),backend=default_backend()) #algorithme de chiffrement
         encryptor = cipher.encryptor()
     
         # add padding to the message
@@ -82,14 +87,10 @@ class CipheredGUI(BasicGUI):
     def decrypt(self, message: bytes):
         msg = base64.b64decode(message[1]['data'])
         iv = base64.b64decode(message[0]['data'])
-        cipher = Cipher(
-            algorithms.AES(self._key), 
-            modes.CTR(iv),
-            backend=default_backend()
-            )
+        cipher = Cipher( algorithms.AES(self._key), modes.CTR(iv),backend=default_backend())
         decryptor = cipher.decryptor()
         decrypted = decryptor.update(msg) + decryptor.finalize()
-        unpadder = padding.PKCS7(128).unpadder()
+        unpadder = padding.PKCS7(NB_BLOCK).unpadder()
         unpadded = unpadder.update(decrypted) + unpadder.finalize()
         return unpadded.decode("utf-8")
 

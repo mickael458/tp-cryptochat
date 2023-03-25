@@ -1,17 +1,16 @@
 from ciphered_gui import *
 import dearpygui.dearpygui as dpg
-
-from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes
+from chat_client import ChatClient
 import base64
-from basic_gui import *
 from cryptography.fernet import Fernet
 import hashlib
 from generic_callback import GenericCallback
+import logging
 
 class FernetGUI(CipheredGUI):
 
 
-    def run_chat(self, sender, app_data)->None:
+    def run_chat(self, sender, app_data)-> None:
         # callback uskeyed by the connection windows to start a chat session
         host = dpg.get_value("connection_host")
         port = int(dpg.get_value("connection_port"))
@@ -24,30 +23,32 @@ class FernetGUI(CipheredGUI):
         self._client = ChatClient(host, port)
         self._client.start(self._callback)
         self._client.register(name)
-         # generating key
-        self.key = hashlib.sha256(password.encode("utf-8").digest())
-        self.key = base64.b64encode(self.key)
+
       
         dpg.hide_item("connection_windows")
         dpg.show_item("chat_windows")
         dpg.set_value("screen", "Connecting")
-
+         # generating key
+        self.key = hashlib.sha256(password.encode()).digest()
+        self.key = base64.b64encode(self.key)
 
 
     def encrypt(self, message):
         '''
         chiffre le message avec Fernet
         '''
-        message_bytes = bytes(message,'utf-8')
+    
         cipher_suite = Fernet(self.key)
+        message_bytes = bytes(message,'utf-8')
         cipher_text = cipher_suite.encrypt(message_bytes)
         return cipher_text
 
     def decrypt(self, message: bytes):
+        messag = base64.b64decode(message['data'])
         cipher_suite= Fernet(self.key)
-        text_bytes = cipher_suite.decrypt(message.encode('utf-8'))
-        plain_text = text_bytes.decode('utf-8')
-        return plain_text
+        text_bytes = cipher_suite.decrypt(messag).decode('utf-8')
+
+        return text_bytes
     
 if __name__ == "__main__":
 
