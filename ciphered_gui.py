@@ -1,14 +1,15 @@
 
-from cryptography.hazmat.backends import default_backend
+
 from basic_gui import *
 import dearpygui.dearpygui as dpg
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.backends import default_backend
 import os
-
+import logging
 from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives import padding
+#from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import padding, hashes
 import base64
 
 class CipheredGUI(BasicGUI):
@@ -61,39 +62,52 @@ class CipheredGUI(BasicGUI):
         dpg.show_item("chat_windows")
         dpg.set_value("screen", "Connecting")
 
-    def encrypt(self,message: str)-> tuple[bytes, bytes]:
+
+    def encrypt(self, message):
         #choix clé de chiffrement
-        iv=os.urandom(16)
-        key = os.urandom(32)
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(self._key), modes.CTR(iv),backend=default_backend())
         encryptor = cipher.encryptor()
-        ct = encryptor.update(b"a secret message") + encryptor.finalize()
-        decryptor = cipher.decryptor()
-        crypt=decryptor.update(ct) + decryptor.finalize()
-        self._log.info(f"message crypté{ crypt}")
+    
+        # add padding to the message
+        padder = padding.PKCS7(algorithms.AES.block_size).padder()
+        padded_message = padder.update(message.encode()) + padder.finalize()
 
-def decrypt(self, message):
-        '''
-        message: message à déchiffrer
+        # encrypt the message and return the IV concatenated with the encrypted message
+        ciphertext = encryptor.update(padded_message) + encryptor.finalize()
+        return (iv,ciphertext)
 
-        Déchiffrer le message avec pkcs7 et retourner le message déchiffré
-        '''
-        #Récupérer l'iv depuis le tuple en base64
+
+    def decrypt(self, message: bytes):
+        msg = base64.b64decode(message[1]['data'])
         iv = base64.b64decode(message[0]['data'])
-        #Récupérer le message depuis le tuple en base64
-        message = base64.b64decode(message[1]['data'])
-        # Fonction qui déchiffre un message avec pkcs7
-        decryptor = Cipher(
-            algorithms.AES(self.key),
-            modes.CBC(iv),
+        cipher = Cipher(
+            algorithms.AES(self._key), 
+            modes.CTR(iv),
             backend=default_backend()
-        ).decryptor()
+            )
+        decryptor = cipher.decryptor()
+        decrypted = decryptor.update(msg) + decryptor.finalize()
+        unpadder = padding.PKCS7(128).unpadder()
+        unpadded = unpadder.update(decrypted) + unpadder.finalize()
+        return unpadded.decode("utf-8")
 
-        # Déchiffrer le message
-        unpadder = padding.PKCS7(TAILLE_BLOCK).unpadder()
-        data = decryptor.update(message) + decryptor.finalize()
-        #retourner le message déchiffré
-        return unpadder.update(data) + unpadder.finalize()
+    def recv(self) -> None:
+        # function called to get incoming msgs and display them
+        if self._callback is not None:
+            for msg in self._callback.get():
+                user, msg = msg
+                decrypted_msg = self.decrypt(msg)
+                self.update_text_screen(f"{user} : {decrypted_msg}")
+            self._callback.clear()
+
+
+    def send(self, text):
+        # function called to send a message to all (broadcasting)
+        encrypted_message = self.encrypt(text)
+        self._client.send_message(encrypted_message)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
