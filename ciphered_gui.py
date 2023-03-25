@@ -15,7 +15,7 @@ import base64
 KEY_SIZE= 16
 NB_ITERATIONS= 100000
 NB_BLOCK = 128
-
+SALT = b"data"
 class CipheredGUI(BasicGUI):
 
     def init_(self)->None:
@@ -57,7 +57,7 @@ class CipheredGUI(BasicGUI):
 
         #Derivation of the key
 
-        salt = b"data"
+    
         kdf= PBKDF2HMAC(algorithm=hashes.SHA256(),length = KEY_SIZE,salt=salt,iterations = NB_ITERATIONS)
         b_password = bytes(password,"utf8")
         self._key = kdf.derive(b_password)
