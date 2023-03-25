@@ -1,1 +1,1 @@
-# tp-cryptochat
+# TP secure chat Florian Krasulja
